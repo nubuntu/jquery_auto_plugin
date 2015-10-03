@@ -954,7 +954,7 @@ THE SOFTWARE.
                                                 self._load(self._current_page);
                                             break;
                                             case 'delete':
-                                                self._load(self._current_page);
+                                                self._delete_row($tr);
                                             break;
                                         }
                                         self.$div_dialog.dialog('close');
@@ -996,8 +996,10 @@ THE SOFTWARE.
                             title:'<span class="glyphicon glyphicon-warning-sign"></span> This record will be deleted, Are you sure ?'
                         };                       
                         $.each(fields,function(index,field){
-                            field.type = 'hidden';     
-                            new_fields[index] = field;
+                            if(field.key){
+                                field.type = 'hidden';     
+                                new_fields[index] = field;
+                            }
                         });
                         options.action_save = this.options.source + '?autotable_action=form_delete';
                     break;
@@ -1024,23 +1026,9 @@ THE SOFTWARE.
                 $tr.effect("highlight", {}, 3000);
             },
             _delete_row     : function($tr){
-                var self                = this;
-                var record              = $tr.data('record');
-                var data                = {};
-                data[this._table_key]   = record[this._table_key];
-                data                    = this._encode(JSON.stringify(data));
-                $.ajax({
-                      url: this.options.source + '?autotable_action=delete',
-                      data: data,
-                      type: "POST",
-                      async: this.options.async,
-                      success: function(data) {
-                        $tr.effect("highlight", {}, 3000);                
-                        $tr.remove();                
-                        self._load(self._current_page);
-                      }
-                });
-
+                $tr.effect("highlight", {}, 3000);                
+                $tr.remove();                
+                this._load(this._current_page);
             },
             _load   : function(page){
                 page = page!==undefined?page:1;

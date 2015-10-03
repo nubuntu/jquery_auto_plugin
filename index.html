@@ -13,7 +13,7 @@
 <script>
 jQuery(document).ready(function(){
 	$("#main").autoTable({
-		title:'Data Siswa',
+		title:'Students',
 		source:'json.php',
 		button_align:'right',
 		fields:{
@@ -25,12 +25,12 @@ jQuery(document).ready(function(){
 				create:false,
 				edit:false
 			},
-			nama:{
-				title:"Nama",
+			name:{
+				title:"Name",
 				required:true,
 			},
-			kota:{
-				title:"Kota",
+			city:{
+				title:"City",
 				type:"select",
 				options:[
 					{value:'Jakarta',text:'Jakarta'},
@@ -39,13 +39,13 @@ jQuery(document).ready(function(){
 				],
 				required:true,
 			},
-			tanggal_lahir:{
-				title:"Tgl Lahir",
+			date_of_birth:{
+				title:"Date Of Birth",
 				type:"date",
 				required:true,
 			},
-			tanggal_daftar:{
-				title:"Tgl Daftar",
+			register_date:{
+				title:"Register Date",
 				type:"date",
 				required:true,
 			},
@@ -53,8 +53,8 @@ jQuery(document).ready(function(){
 				title:"Status",
 				type:"radio",
 				options:[
-					{value:'AKTIF',text:'Aktif'},
-					{value:'NON AKTIF',text:'Non Aktif'}
+					{value:'ACTIVE',text:'ACTIVE'},
+					{value:'PASSIVE',text:'PASSIVE'}
 				],
 				required:true,
 			},
