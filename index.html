@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jquery - autoTable</title>
+<link rel="stylesheet" type="text/css" href="jquery-ui/jquery-ui.min.css"/>
+<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+<link rel="stylesheet" type="text/css" href="css/bootstrap-theme.min.css"/>
+<link rel="stylesheet" type="text/css" href="css/auto.css"/>
+<script type="text/javascript" src="jquery-ui/external/jquery/jquery.js"></script>
+<script type="text/javascript" src="jquery-ui/jquery-ui.min.js"></script>
+<script type="text/javascript" src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/jquery.auto.js"></script>
+<script>
+jQuery(document).ready(function(){
+	$("#main").autoTable({
+		title:'Data Siswa',
+		source:'json.php',
+		button_align:'right',
+		fields:{
+			id:{
+				type:"text",
+				title:"NIK",
+				key:true,
+				list:false,
+				create:false,
+				edit:false
+			},
+			nama:{
+				title:"Nama",
+				required:true,
+			},
+			kota:{
+				title:"Kota",
+				type:"select",
+				options:[
+					{value:'Jakarta',text:'Jakarta'},
+					{value:'Bekasi',text:'Bekasi'},
+					{value:'Depok',text:'Depok'}
+				],
+				required:true,
+			},
+			tanggal_lahir:{
+				title:"Tgl Lahir",
+				type:"date",
+				required:true,
+			},
+			tanggal_daftar:{
+				title:"Tgl Daftar",
+				type:"date",
+				required:true,
+			},
+			status:{
+				title:"Status",
+				type:"radio",
+				options:[
+					{value:'AKTIF',text:'Aktif'},
+					{value:'NON AKTIF',text:'Non Aktif'}
+				],
+				required:true,
+			},
+		},
+		buttons:[
+			{title:'CANCEL',class:'btn-default'},
+			{title:'SAVE',class:'btn-primary'}
+		]
+	});
+	$("#main").autoTable("load");
+});
+</script>
+</head>
+<body>
+<div align="center" style="margin-top: 50px">
+<div id="main" style="width:800px"></div>
+</div>
+</body>
+</html>

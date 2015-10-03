@@ -1,0 +1,71 @@
+.autoform_title h3 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: normal;
+    width: 75%;
+    padding-top: 8px;
+}
+
+.autotable_title h3 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: normal;
+    padding-top: 8px;
+}
+
+.autotable_busy_panel {
+  opacity: 0.1;
+  filter: alpha(opacity=50);
+  z-index: 998;
+  position: absolute;
+  background-color: #000;
+}
+
+.autotable_busy_message {
+    text-align: left;
+    color: #ffffff;
+  cursor: wait;
+  z-index: 999;
+  position: absolute;
+}
+
+.autotable_busy_message_animate {
+    color: #ffffff;
+    -animation: spin .7s infinite linear;
+    -webkit-animation: spin2 .7s infinite linear;
+}
+
+@-webkit-keyframes spin2 {
+    from { -webkit-transform: rotate(0deg);}
+    to { -webkit-transform: rotate(360deg);}
+}
+
+@keyframes spin {
+    from { transform: scale(1) rotate(0deg);}
+    to { transform: scale(1) rotate(360deg);}
+}
+
+.autotable_table > tbody > tr:hover{
+	background-color: #d9edf7;
+}
+.autotable_table > tbody > tr > td {
+     vertical-align: middle;
+}
+.autotable_action{
+	width: 90px;
+	text-align: center;
+}
+
+.no-titlebar .ui-dialog-titlebar {
+    display: none;
+}
+.no-titlebar {
+  border: none;
+  background: transparent;
+}
+
+.btn-primary{
+    color: #ffffff !important;
+}
