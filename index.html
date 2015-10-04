@@ -16,6 +16,7 @@ jQuery(document).ready(function(){
 		title:'Students',
 		source:'json.php',
 		button_align:'right',
+		limit:'10',
 		fields:{
 			id:{
 				type:"text",
@@ -27,11 +28,13 @@ jQuery(document).ready(function(){
 			},
 			name:{
 				title:"Name",
+				searchable:true,
 				required:true,
 			},
 			city:{
 				title:"City",
 				type:"select",
+				searchable:true,
 				options:[
 					{value:'Jakarta',text:'Jakarta'},
 					{value:'Bekasi',text:'Bekasi'},
@@ -42,6 +45,7 @@ jQuery(document).ready(function(){
 			date_of_birth:{
 				title:"Date Of Birth",
 				type:"date",
+				searchable:true,
 				required:true,
 			},
 			register_date:{
@@ -70,7 +74,7 @@ jQuery(document).ready(function(){
 </head>
 <body>
 <div align="center" style="margin-top: 50px">
-<div id="main" style="width:800px"></div>
+<div id="main" style="padding: 20px"></div>
 </div>
 </body>
 </html>

@@ -5,30 +5,46 @@ if ($mysqli->connect_error) {
 }
 
 $post   = $_POST;
-$get    = $_GET;
 
 # clean post
 if(count($post)>0){
     foreach($post as $key => $value){
-        $post[$key] = $mysqli->real_escape_string($value);    
+        $post[$key] = is_array($value) ? $value : $mysqli->real_escape_string($value);    
     }
 }
 
-# clean get
-if(count($get)>0){
-    foreach($get as $key => $value){
-        $get[$key] = $mysqli->real_escape_string($value);    
-    }
-}
-
-switch($get['autotable_action']){
+switch($post['autotable_action']){
     case 'get_records':
-        $page               = $get['autotable_page'];
-        $limit              = $get['autotable_limit'];
+        $page               = $post['autotable_page'];
+        $limit              = $post['autotable_limit'];
         $start              = ($page-1) * $limit;
-        $q                  = "select * from tbl_students limit $start,$limit";
+
+        $where              = '';
+        # if search 
+        if(isset($post['autotable_search']) && strlen($post['autotable_search'])>=1){
+            $set_option = function($field) use($post){
+                switch($post['autotable_search_option']){
+                    case 'equal':
+                        return 'LOWER('.$field.')="'.strtolower($post['autotable_search']).'"';
+                    break;
+                    case 'contain':
+                        return 'LOWER('.$field.') like "%'.strtolower($post['autotable_search']).'%"';
+                    break;
+                }
+            };
+            for($i=0;$i<count($post['autotable_search_list']);$i++){
+                $field      = $post['autotable_search_list'][$i];
+                $where[]    = $set_option($field);
+            }
+            if(count($where)>=1){
+                $where = 'where '.implode(' or ',$where);                
+            } 
+        }    
+        # end search
+        
+        $q                  = "select * from tbl_students $where limit $start,$limit";
         $data['records']    = $mysqli->query($q)->fetch_all(MYSQLI_ASSOC);
-        $data['total']      = $mysqli->query('select count(*) from tbl_students')->fetch_row();
+        $data['total']      = $mysqli->query("select count(*) from tbl_students $where")->fetch_row();
         die(json_encode($data));
     break;
     case 'form_save':

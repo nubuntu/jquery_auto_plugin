@@ -3,7 +3,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: normal;
-    width: 75%;
     padding-top: 8px;
 }
 
@@ -68,4 +67,12 @@
 
 .btn-primary{
     color: #ffffff !important;
+}
+
+.form_search label{
+   display:table-cell !important;
+}
+
+.form_search{
+   color:#000000 !important;  
 }

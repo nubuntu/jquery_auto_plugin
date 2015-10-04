@@ -160,6 +160,9 @@ THE SOFTWARE.
                         return this._get_input_hidden(field);
                     break;
                     case 'checkbox':
+                        if(field.options){
+                            return this._get_input_checkbox_group(field);
+                        }
                         return this._get_input_checkbox(field);
                     break;
                 }
@@ -196,7 +199,7 @@ THE SOFTWARE.
                 $input.prop('name','autoform_' + field.name)
                       .prop('id','autoform_' + field.name)
                       .data('field',field)
-                      .addClass('form-control loket_control');
+                      .addClass('form-control autoform_control');
                 if(field.required){
                     $input.prop('required',field.required);
                 }
@@ -212,9 +215,9 @@ THE SOFTWARE.
                         if(typeof field.change==='string'){
                             var func = field.change.replace("function","function change");
                             eval(func);
-                            change(self,val);                           
+                            change(self,val,el);                           
                         }else{
-                            field.change(self,val);
+                            field.change(self,val,el);
                         }
                     }
                 });             
@@ -296,16 +299,45 @@ THE SOFTWARE.
                 var $input_label    = $('<label/>').append($input).append('<span>' + field.title + '</span>');
                 return $input_div.append($input_label);
             },
+            _get_input_checkbox_group    : function(field){
+                var self        =  this;
+                var $div        = $('<div/>');
+                if(field.options!=undefined){
+                    $.each(field.options, function(index,option){
+                        var $input  =  $('<input/>').prop('type','checkbox').prop('value',option.value);
+                        $input      =  self._get_input_base(field,$input);
+                        $input.prop('id',$input.prop('id') + '_' + option.value);
+                        $input.removeClass('form-control');
+                        $div.append($input);
+                        $div.children().last().after(' ' + option.text + '<br/>');
+                    });
+                }
+                return $div;
+            },
             _get_input_value    : function($input,field){
                 switch(field.type){
                     default:
                         return $input.val();
                     break;
                     case 'checkbox':
+                        if(field.options){
+                            return this._get_input_value_checkbox_group($input,field);
+                        }
                         return $input.prop('checked');
                     break;    
                 }
                 return $input.val();
+            },
+            _get_input_value_checkbox_group : function($input,field){
+                var values  = [];
+                var $parent = $input.parent();
+                $.each(field.options,function(key,option){
+                    var checked = $parent.find('#autoform_' + field.name + '_' + option.value).prop('checked');
+                    if(checked){
+                        values.push(option.value);
+                    }
+                });
+                return values;
             },
             _get_buttons : function(){
                 var $div = $('<div/>').addClass('autoform_action pull-right');
@@ -346,7 +378,7 @@ THE SOFTWARE.
                 return $a;
             },
             get_fields   : function(){
-                var $controls = this.$container.find('.loket_control');
+                var $controls = this.$container.find('.autoform_control');
                 var fields    = [];
                 $controls.each(function(index){
                     var field = $(this).data('field');
@@ -446,7 +478,11 @@ THE SOFTWARE.
                         this._set_value_radio(field);
                     break;
                     case 'checkbox':
-                        this._set_value_checkbox(field);
+                        if(field.options){
+                            this._set_value_checkbox_group(field);
+                        }else{
+                            this._set_value_checkbox(field);
+                        }
                     break;
                 }
             },
@@ -469,11 +505,23 @@ THE SOFTWARE.
             },
             _set_value_radio : function(field){
                 var $element = field.element.find("#autoform_" + field.name + "_" + field.value);
-                $element.prop("checked",true).change();
+                $element.prop("checked",field.value).change();
             },
             _set_value_checkbox : function(field){
                 var $element = field.element.find("[name=autoform_" + field.name + "]"); 
                 $element.prop("checked",field.value).change();
+            },
+            _set_value_checkbox_group : function(field){
+                var $element = field.element; 
+                $element.find('[name="autoform_' + field.name + '"]').prop("checked",false);
+                if(field.value){
+                    for(i=0;i<field.value.length;i++){
+                        var value = field.value[i];
+                        var $element_child = field.element.find("#autoform_" + field.name + "_" + value);
+                        $element_child.prop("checked",true);
+                    }
+                    $element_child.change();
+                }
             },
             _clear_string : function(str) {
                 str = str.replace(/\s{2,}/g, ' ');
@@ -570,6 +618,7 @@ THE SOFTWARE.
             $div_busy               : null,
             $div_busy_message       : null,
             $form                   : null,
+            $toolbar                : null,
             _dialog                 : null,
             _fields_size            : null,
             _current_page           : 1,
@@ -577,6 +626,7 @@ THE SOFTWARE.
             _total                  : 0,
             _records                : [],
             _table_key              : null,
+            _list_params            : null,
             _create : function(){
                 if(this.options.source){
                     var options = this._get_source();
@@ -591,18 +641,13 @@ THE SOFTWARE.
             },
             _get_source : function(){
                 var params = {};
-                $.ajax({
-                      url: this.options.source + '?autotable_action=get_source',
-                      type: "GET",
-                      async: false,
-                      success: function(data) {
-                        try {
-                            params = JSON.parse(data);
-                        } catch (e) {
-                            return {};
-                        }
-                      }
-                });
+                this._do_ajax({autotable_action:'get_source'},function(data){
+                    try {
+                        params = JSON.parse(data);
+                    } catch (e) {
+                        return {};
+                    }
+                },{async:false});
                 return params;
             },
             _init_fields      : function(){
@@ -645,18 +690,18 @@ THE SOFTWARE.
                 this._create_toolbar();        
             },
             _create_toolbar    : function(){
-                var $toolbar = $('<div/>').addClass('btn-group pull-right');
-                $toolbar.append(this._create_new_button())
-                        .appendTo(this.$title);
-                this.$title.append('<div class="clearfix"></div>');
+                var $div        = $('<div/>').addClass('col-md-10 col-lg-10 col-sm-10 pull-right');
+                this.$toolbar   = $('<div/>').addClass('row input-group').append(this._create_new_button()).appendTo($div);
+                this.$title.append($div).append('<div class="clearfix"></div>');
             },
             _create_new_button : function(){
                 var self = this;
-                return $button = $('<button/>').addClass('btn btn-primary')
+                var $button = $('<button/>').addClass('btn btn-primary')
                             .append('<span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add New')
                             .click(function(){
                                 self.add_new();
                             });
+                return  $('<span>').addClass('input-group-btn').append($button);            
             },
             _create_table  : function(){
                this.$table = $('<table/>').addClass('table table-striped table-hover autotable_table').appendTo(this.$container);
@@ -894,7 +939,7 @@ THE SOFTWARE.
             _create_action  : function(){
                 var self            = this;
                 var $div_action     = $('<div/>');
-                var $edit_action    = $('<button/>').addClass('btn btn-info btn-sm').prop('title','Edit')
+                var $edit_action    = $('<button/>').addClass('btn btn-info btn-xs').prop('title','Edit')
                                                 .append('<span class="glyphicon glyphicon-edit"></span>')
                                                 .click(function(){
                                                     var $tr     = $(this).closest('tr');
@@ -903,7 +948,7 @@ THE SOFTWARE.
                                                     self.$form.autoForm('set_options',options).autoForm('bind',record).autoForm('load');
                                                     self.$div_dialog.dialog({title:'Edit record'}).dialog('open');
                                                 });
-                var $delete_action   = $('<button/>').addClass('btn btn-danger btn-sm').prop('title','Delete')
+                var $delete_action   = $('<button/>').addClass('btn btn-danger btn-xs').prop('title','Delete')
                                                 .append('<span class="glyphicon glyphicon-trash"></span>')                
                                                 .click(function(){
                                                     var $tr     = $(this).closest('tr');
@@ -926,9 +971,9 @@ THE SOFTWARE.
                 var self        = this;
                 var options     = this.$form.autoForm('get_options');
                 var fields      = $.extend(true, {}, this.options.fields);
-                var new_fields  = {};
+                var new_fields  = {autotable_action:{type:'hidden',value:'form_save'}};
                 options.async       = true;
-                options.action_save = this.options.source + '?autotable_action=form_save';
+                options.action_save = this.options.source;
                 options.buttons = {
                     close: {
                         title: "Cancel",
@@ -990,7 +1035,8 @@ THE SOFTWARE.
                     break;
                     case 'delete':
                         options.title = 'Are you sure ?'; 
-                        options.buttons.save.title = 'Delete';
+                        options.buttons.save.title          = 'Delete';
+                        new_fields.autotable_action.value   = 'form_delete';
                         new_fields['message'] = {
                             type:'caption',
                             title:'<span class="glyphicon glyphicon-warning-sign"></span> This record will be deleted, Are you sure ?'
@@ -1001,7 +1047,6 @@ THE SOFTWARE.
                                 new_fields[index] = field;
                             }
                         });
-                        options.action_save = this.options.source + '?autotable_action=form_delete';
                     break;
                 }
                 options.fields      = new_fields;
@@ -1034,16 +1079,42 @@ THE SOFTWARE.
                 page = page!==undefined?page:1;
                 var self = this;
                 this._show_busy();
-                $.ajax({
-                      url: this.options.source + '?autotable_action=get_records&autotable_page=' + page + '&autotable_limit=' + this.options.limit,
-                      type: "GET",
-                      async: this.options.async,
-                      success: function(data) {
+                var data = this._get_list_params({autotable_page:page});
+                this._do_ajax(data,function(data){
+                    try{
                         data = JSON.parse(data);
                         self._on_load(data,page);
-                        self._hide_busy();
+                        self._hide_busy();                    
+                    }catch(e){
+                        alert(e);
+                        console.log(data);
+                        self._hide_busy();                    
+                    }
+                });        
+            },
+            _get_list_params : function(options){
+                var params          = {
+                                        autotable_action    :'get_records',
+                                        autotable_limit     : this.options.limit,
+                                    };
+                params              = $.extend(true, params, options);
+                this._list_params   = $.extend(true,this._list_params,params);                       
+                return this._list_params;        
+            },
+            _do_ajax : function(post_data,on_response,params){
+                var options = {
+                      url: this.options.source,
+                      type: "POST",
+                      data: post_data,
+                      async: this.options.async,
+                      success: function(data) {
+                        on_response(data);
                       }
-                });
+                };
+                if(params!==undefined){
+                    options = $.extend(true, options, params);                    
+                }
+                $.ajax(options);
             },
             _on_load : function(data,page){
                 if(data.records!=null && data.records.length>=1){
@@ -1163,17 +1234,110 @@ THE SOFTWARE.
         });
 }(jQuery));
 
-/** autoTable Multiple search extension 
+/** autoTable Advanced search extension 
 
 **/
 (function ($) {
+    var base = {
+        _create_toolbar : $.nubuntu.autoTable.prototype._create_toolbar,
+    };
     $.extend(true, $.nubuntu.autoTable.prototype, {
+        $div_search     : null,
+        $search_input   : null,
+        _search_list    : [],
+        _search_option  : 'contain',
         options: {
-            toolbarsearch:false,
+            search:true,
         },
-        _create_header_th : function(field){
-            return $('<th/>').html(field.title);
-        }
+        _create_toolbar : function(){
+            base._create_toolbar.apply(this,arguments);
+            if(this.options.search){
+                this._create_search();
+            }
+        },
+        _create_search : function(){
+            this.$div_search = $('<div/>').addClass('input-group pull-right').prependTo(this.$toolbar);
+            this.$div_search.append(this._create_search_input())
+                            .append(this._create_search_option())
+                            .append(this._create_search_button());
+            this.$div_search.find('.dropdown-menu').css({
+                                                        'min-width':this.$div_search.width(),
+                                                        'border':'none',
+                                                        'box-shadow':'none',
+                                                        'webkit-box-shadow':'none',
+                                                        'background':'transparent',
+                                                    })
+                            .find('.form-control').removeClass('form-control');
+        },
+        _create_search_button : function(){
+            var self    = this;
+            var $button = $('<button/>').addClass('btn btn-default')
+                                        .append('<span class="glyphicon glyphicon-search" aria-hidden="true"></span>')
+                                        .click(function(){
+                                            var data    = {
+                                                            autotable_search        : self.$search_input.val(),
+                                                            autotable_search_list   : self._search_list,
+                                                            autotable_search_option : self._search_option,
+                                                        };
+                                            self._list_params = $.extend(true, self._list_params, data);
+                                            self.load(1);                                                                                                    
+                                        });
+            return  $('<span>').addClass('input-group-btn').append($button);            
+        },
+        _create_search_option : function(){
+            var $div             = $('<div/>').addClass('input-group-btn');
+            var $dropdown        = $('<div>').addClass('dropdown').appendTo($div);
+            var $dropdown_button = $('<button/>').addClass('btn btn-default dropdown-toggle')
+                                                .attr('data-toggle','dropdown')
+                                                .append('<span class="caret"></span>')
+                                                .appendTo($dropdown);
+            var $dropdown_menu    = $('<div/>').addClass('dropdown-menu dropdown-menu-right')
+                                                .attr('role','menu')
+                                                .append(this._create_search_option_form())
+                                                .appendTo($dropdown);
+            return $div;                                        
+        },
+        _create_search_option_form : function(){
+            var self                    = this;
+            var options                 = {title:'Filter By'};
+            options.fields              = {
+                                                search_list: {
+                                                                    type:'checkbox',
+                                                                    title:'',
+                                                                    options:[],
+                                                                    value:[],
+                                                                    change:function(form,val){
+                                                                        self._search_list = val;
+                                                                    }
+                                                                },
+                                                search_option : {
+                                                                    type:'radio',
+                                                                    title:'Search Option',
+                                                                    options:[
+                                                                        {value:'contain',text:'Contains'},
+                                                                        {value:'equal',text:'Equals'},
+                                                                    ],
+                                                                    default:'contain',
+                                                                    change: function(form,val){
+                                                                        self._search_option = val;
+                                                                    }
+
+                                                                }    
+                                            };
+            $.each(this.options.fields,function(key,field){
+                if(field.searchable){
+                    options.fields.search_list.value.push(key);
+                    options.fields.search_list.options.push({value:key,text:field.title});
+                }
+            });
+            return $('<div/>').addClass('form_search').autoForm(options).autoForm('load');
+        },
+        _create_search_input : function(){
+            return this.$search_input = $('<input/>').attr('type','text')
+                                                    .attr('placeholder','Search...')
+                                                    .css('min-width','250px')
+                                                    .addClass('form-control autotable_input_search');
+        },
     });
     
 })(jQuery);
