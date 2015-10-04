@@ -610,6 +610,7 @@ THE SOFTWARE.
             $container              : null,
             $title                  : null,
             $table                  : null,
+            $thead                  : null,
             $tbody                  : null,
             $tfoot                  : null,
             $div_paging             : null,
@@ -712,7 +713,7 @@ THE SOFTWARE.
             },
             _create_header : function(){
                 var self    = this;
-                var $header = $("<thead/>");
+                this.$thead = $("<thead/>");
                 var $tr     = $("<tr/>");
                 if(this.options.button_align=='left'){
                     $tr.append("<th></th>");
@@ -728,7 +729,7 @@ THE SOFTWARE.
                 if(this.options.button_align=='right'){
                     $tr.append("<th></th>");
                 }
-                $header.append($tr).appendTo(this.$table);
+                this.$thead.append($tr).appendTo(this.$table);
             },
             _create_header_th : function(field){
                 return $('<th/>').html(field.title);
@@ -761,7 +762,7 @@ THE SOFTWARE.
                                 });
             },
             _create_pagination : function(){
-                var colspan             = this.$tbody.find("tr:last").find("td").length;
+                var colspan             = this.$thead.find("tr:last").find("th").length;
                 var $tr                 = $("<tr/>");
                 this.$div_paging        = $("<div/>").addClass('autotable_pagination pull-right');
                 this.$ul_paging         = $("<ul/>").addClass('pagination').appendTo(this.$div_paging);
@@ -1117,21 +1118,24 @@ THE SOFTWARE.
                 $.ajax(options);
             },
             _on_load : function(data,page){
+                this.$tbody.empty();
                 if(data.records!=null && data.records.length>=1){
                     this._records = data.records;
-                    this.$tbody.empty();
                     this._create_records(data.records);
-                }
-                if(data.total>=1){
-                    this._current_page  = page;
-                    this._total         = data.total;
-                    this._page_count    = Math.floor(data.total/this.options.limit);
-                    if(this._total>(this._page_count*this.options.limit)){
-                        this._page_count++;
+                    if(data.total>=1){
+                        this._current_page  = page;
+                        this._total         = data.total;
+                        this._page_count    = Math.floor(data.total/this.options.limit);
+                        if(this._total>(this._page_count*this.options.limit)){
+                            this._page_count++;
+                        }
                     }
-                }
-                if(this._page_count>=1){
-                    this._create_pagination();
+                    if(this._page_count>=1){
+                        this._create_pagination();
+                    }
+                }else{
+                    this.$tbody.append(this._create_empty_row());                    
+                    this.$tfoot.empty();
                 }
             },
             _get_confirm_dialog : function(title,message,callback){
