@@ -653,6 +653,15 @@ THE SOFTWARE.
             },
             _init_fields      : function(){
                 this._fields_size = Object.keys(this.options.fields).length;
+                $.each(this.options.fields,function(index,field){
+                    field.name = index;
+                    if(field.searchable===undefined){
+                        field.searchable    = true;
+                    }
+                    if(field.sortable===undefined){
+                        field.sortable      = true;
+                    }
+                });
             },
             _create_container : function(){
                 this.$container = $('<div/>').addClass('panel panel-primary table-responsive').appendTo(this.element);
@@ -1349,6 +1358,43 @@ THE SOFTWARE.
                                                             self.$search_button.click();
                                                         }
                                                     });
+        },
+    });
+    
+})(jQuery);
+
+/** autoTable sort extension 
+
+**/
+(function ($) {
+
+    $.extend(true, $.nubuntu.autoTable.prototype, {
+        _create_header_th : function(field){
+            var self    = this;
+            var $caret  = $('<span class="caret-dir"><span class="caret"></span></span>').hide();
+            var $th     = $('<th/>').html(field.title).append($caret);
+            if(field.sortable){
+                $th.css('cursor','pointer')
+                    .data('field',field)
+                    .data('asc',false)
+                    .click(function(){
+                        self.$thead.find('.caret-dir').hide();
+                        var asc = $(this).data('asc');
+                        if(!asc){
+                            $(this).find('.caret-dir').removeClass('dropdown').addClass('dropup').show();
+                        }else{
+                            $(this).find('.caret-dir').removeClass('dropup').addClass('dropdown').show();                            
+                        }
+                        var sort_dir = !asc ? ' ASC' : ' DESC';
+                        var sort     = $(this).data('field').name + sort_dir;
+                        self._list_params = $.extend(true, self._list_params,{
+                            autotable_sort : sort
+                        });
+                        self._load(self._current_page);
+                        $(this).data('asc',!asc);
+                    });
+            }
+            return $th;
         },
     });
     

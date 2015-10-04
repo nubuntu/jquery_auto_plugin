@@ -20,6 +20,7 @@ switch($post['autotable_action']){
         $start              = ($page-1) * $limit;
 
         $where              = '';
+        $sort               = '';
         # if search 
         if(isset($post['autotable_search']) && strlen($post['autotable_search'])>=1){
             $set_option = function($field) use($post){
@@ -42,7 +43,13 @@ switch($post['autotable_action']){
         }    
         # end search
         
-        $q                  = "select * from tbl_students $where limit $start,$limit";
+        # if sort
+        if(isset($post['autotable_sort'])){
+            $sort = 'order by '. $post['autotable_sort'];
+        }
+        # end sort
+        
+        $q                  = "select * from tbl_students $where $sort limit $start,$limit";
         $data['records']    = $mysqli->query($q)->fetch_all(MYSQLI_ASSOC);
         $data['total']      = $mysqli->query("select count(*) from tbl_students $where")->fetch_row();
         die(json_encode($data));
