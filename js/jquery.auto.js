@@ -1244,6 +1244,7 @@ THE SOFTWARE.
     $.extend(true, $.nubuntu.autoTable.prototype, {
         $div_search     : null,
         $search_input   : null,
+        $search_button  : null,
         _search_list    : [],
         _search_option  : 'contain',
         options: {
@@ -1270,8 +1271,8 @@ THE SOFTWARE.
                             .find('.form-control').removeClass('form-control');
         },
         _create_search_button : function(){
-            var self    = this;
-            var $button = $('<button/>').addClass('btn btn-default')
+            var self            = this;
+            this.$search_button = $('<button/>').addClass('btn btn-default')
                                         .append('<span class="glyphicon glyphicon-search" aria-hidden="true"></span>')
                                         .click(function(){
                                             var data    = {
@@ -1282,7 +1283,7 @@ THE SOFTWARE.
                                             self._list_params = $.extend(true, self._list_params, data);
                                             self.load(1);                                                                                                    
                                         });
-            return  $('<span>').addClass('input-group-btn').append($button);            
+            return  $('<span>').addClass('input-group-btn').append(this.$search_button);            
         },
         _create_search_option : function(){
             var $div             = $('<div/>').addClass('input-group-btn');
@@ -1333,10 +1334,17 @@ THE SOFTWARE.
             return $('<div/>').addClass('form_search').autoForm(options).autoForm('load');
         },
         _create_search_input : function(){
+            var self                  = this;
             return this.$search_input = $('<input/>').attr('type','text')
                                                     .attr('placeholder','Search...')
                                                     .css('min-width','250px')
-                                                    .addClass('form-control autotable_input_search');
+                                                    .addClass('form-control autotable_input_search')
+                                                    .keyup(function(e){
+                                                        if(e.keyCode == 13)
+                                                        {
+                                                            self.$search_button.click();
+                                                        }
+                                                    });
         },
     });
     
