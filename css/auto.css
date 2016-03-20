@@ -1,3 +1,55 @@
+.panel .panel-body{
+    padding: 15px;
+}
+
+.auto_loading{
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  position: absolute;
+  padding: 0;
+   display: table-cell;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.auto_loading *{
+	vertical-align: middle;
+	display: inline-block;
+}
+
+.auto_loading > span{
+	height: 100%;
+}
+
+.auto_loading > div{
+  width: 256px;
+  height: 256px;
+  background: url(../images/loading.gif) no-repeat;	
+  background-size: cover;
+}
+
+.autotable_container{
+  min-height: 400px;
+    padding: 0px;
+}
+
+.autotable_title,.autotable_busy_message{
+    padding: 20px;
+}
+
+.form-horizontal .form-group{
+    margin-left: 0px;
+    margin-right: 0px;
+}
+.autoform_container{
+	position: relative;
+}
+
+.autoform_title{
+    padding: 0px;
+}
 .autoform_title h3 {
     white-space: nowrap;
     overflow: hidden;
@@ -75,4 +127,15 @@
 
 .form_search{
    color:#000000 !important;  
+}
+
+.label-required:after {
+    content: "✱";
+    font-weight: 700;
+    color: red;
+    display: inline-block;
+    position: relative;
+    top: -.2rem;
+    margin-left: .2rem;
+    font-size: 1rem;
 }

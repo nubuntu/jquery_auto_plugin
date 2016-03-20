@@ -1,3 +1,220 @@
+(function( $ ) {
+    $.widget("nubuntu.autoCore", {
+        options : {
+            messages : {
+                'en' : {
+                    form : {
+                        error : {
+                            required : '%s is required and cannot be empty...'
+                        },
+                    },
+                    table : {
+                        notice : {
+                            empty : 'Data empty!',
+                        },    
+                    },
+                },
+                'id' : {
+                    form : {
+                        error : {
+                            required : '%s harus di isi...'
+                        },
+                    },
+                    table : {
+                        notice : {
+                            empty : 'Tidak ada data...',
+                        },    
+                    },
+                },                
+            }
+        },
+        sprintf : function(){
+              var regex = /%%|%(\d+\$)?([\-+\'#0 ]*)(\*\d+\$|\*|\d+)?(?:\.(\*\d+\$|\*|\d+))?([scboxXuideEfFgG])/g;
+              var a = arguments;
+              var i = 0;
+              var format = a[i++];
+
+              // pad()
+              var pad = function(str, len, chr, leftJustify) {
+                if (!chr) {
+                  chr = ' ';
+                }
+                var padding = (str.length >= len) ? '' : new Array(1 + len - str.length >>> 0)
+                  .join(chr);
+                return leftJustify ? str + padding : padding + str;
+              };
+
+              // justify()
+              var justify = function(value, prefix, leftJustify, minWidth, zeroPad, customPadChar) {
+                var diff = minWidth - value.length;
+                if (diff > 0) {
+                  if (leftJustify || !zeroPad) {
+                    value = pad(value, minWidth, customPadChar, leftJustify);
+                  } else {
+                    value = value.slice(0, prefix.length) + pad('', diff, '0', true) + value.slice(prefix.length);
+                  }
+                }
+                return value;
+              };
+
+              // formatBaseX()
+              var formatBaseX = function(value, base, prefix, leftJustify, minWidth, precision, zeroPad) {
+                // Note: casts negative numbers to positive ones
+                var number = value >>> 0;
+                prefix = (prefix && number && {
+                  '2'  : '0b',
+                  '8'  : '0',
+                  '16' : '0x'
+                }[base]) || '';
+                value = prefix + pad(number.toString(base), precision || 0, '0', false);
+                return justify(value, prefix, leftJustify, minWidth, zeroPad);
+              };
+
+              // formatString()
+              var formatString = function(value, leftJustify, minWidth, precision, zeroPad, customPadChar) {
+                if (precision !== null && precision !== undefined) {
+                  value = value.slice(0, precision);
+                }
+                return justify(value, '', leftJustify, minWidth, zeroPad, customPadChar);
+              };
+
+              // doFormat()
+              var doFormat = function(substring, valueIndex, flags, minWidth, precision, type) {
+                var number, prefix, method, textTransform, value;
+
+                if (substring === '%%') {
+                  return '%';
+                }
+
+                // parse flags
+                var leftJustify = false;
+                var positivePrefix = '';
+                var zeroPad = false;
+                var prefixBaseX = false;
+                var customPadChar = ' ';
+                var flagsl = flags.length;
+                var j;
+                for (j = 0; flags && j < flagsl; j++) {
+                  switch (flags.charAt(j)) {
+                  case ' ':
+                    positivePrefix = ' ';
+                    break;
+                  case '+':
+                    positivePrefix = '+';
+                    break;
+                  case '-':
+                    leftJustify = true;
+                    break;
+                  case "'":
+                    customPadChar = flags.charAt(j + 1);
+                    break;
+                  case '0':
+                    zeroPad = true;
+                    customPadChar = '0';
+                    break;
+                  case '#':
+                    prefixBaseX = true;
+                    break;
+                  }
+                }
+
+                // parameters may be null, undefined, empty-string or real valued
+                // we want to ignore null, undefined and empty-string values
+                if (!minWidth) {
+                  minWidth = 0;
+                } else if (minWidth === '*') {
+                  minWidth = +a[i++];
+                } else if (minWidth.charAt(0) === '*') {
+                  minWidth = +a[minWidth.slice(1, -1)];
+                } else {
+                  minWidth = +minWidth;
+                }
+
+                // Note: undocumented perl feature:
+                if (minWidth < 0) {
+                  minWidth = -minWidth;
+                  leftJustify = true;
+                }
+
+                if (!isFinite(minWidth)) {
+                  throw new Error('sprintf: (minimum-)width must be finite');
+                }
+
+                if (!precision) {
+                  precision = 'fFeE'.indexOf(type) > -1 ? 6 : (type === 'd') ? 0 : undefined;
+                } else if (precision === '*') {
+                  precision = +a[i++];
+                } else if (precision.charAt(0) === '*') {
+                  precision = +a[precision.slice(1, -1)];
+                } else {
+                  precision = +precision;
+                }
+
+                // grab value using valueIndex if required?
+                value = valueIndex ? a[valueIndex.slice(0, -1)] : a[i++];
+
+                switch (type) {
+                case 's':
+                  return formatString(String(value), leftJustify, minWidth, precision, zeroPad, customPadChar);
+                case 'c':
+                  return formatString(String.fromCharCode(+value), leftJustify, minWidth, precision, zeroPad);
+                case 'b':
+                  return formatBaseX(value, 2, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+                case 'o':
+                  return formatBaseX(value, 8, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+                case 'x':
+                  return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+                case 'X':
+                  return formatBaseX(value, 16, prefixBaseX, leftJustify, minWidth, precision, zeroPad)
+                    .toUpperCase();
+                case 'u':
+                  return formatBaseX(value, 10, prefixBaseX, leftJustify, minWidth, precision, zeroPad);
+                case 'i':
+                case 'd':
+                  number = +value || 0;
+                  // Plain Math.round doesn't just truncate
+                  number = Math.round(number - number % 1);
+                  prefix = number < 0 ? '-' : positivePrefix;
+                  value = prefix + pad(String(Math.abs(number)), precision, '0', false);
+                  return justify(value, prefix, leftJustify, minWidth, zeroPad);
+                case 'e':
+                case 'E':
+                case 'f': // Should handle locales (as per setlocale)
+                case 'F':
+                case 'g':
+                case 'G':
+                  number = +value;
+                  prefix = number < 0 ? '-' : positivePrefix;
+                  method = ['toExponential', 'toFixed', 'toPrecision']['efg'.indexOf(type.toLowerCase())];
+                  textTransform = ['toString', 'toUpperCase']['eEfFgG'.indexOf(type) % 2];
+                  value = prefix + Math.abs(number)[method](precision);
+                  return justify(value, prefix, leftJustify, minWidth, zeroPad)[textTransform]();
+                default:
+                  return substring;
+                }
+              };
+
+              return format.replace(regex, doFormat);
+        },
+        loading:function($type){
+            switch($type){
+                case 'show':
+                    if(!this.$loading){
+                        this.$loading = $('<div/>').addClass('auto_loading')
+                                                .append($('<span/>'))
+                                                .append($('<div/>'))
+                                                .appendTo(this.element);
+                    }
+                    this.$loading.show();
+                break;
+                case 'hide':
+                    this.$loading.hide();
+                break;
+            }
+        }
+    });
+}(jQuery));
+
 /* 
 
 autoForm 1.0.0
@@ -31,16 +248,21 @@ THE SOFTWARE.
             options : {
                 buttons_align : 'center',
                 date_format   : 'yy-mm-dd',
-                async         : false,  
+                async         : true, 
+                language      : 'id',
+                summernote    : true,
             },
             $container      : null,
             $container_body : null,
             $title          : null, 
             $form           : null,
             $msgbox         : null,
+            $toolbar        : null,
             _create : function(){
-                this.element.addClass('row');
-                if(this.options.source){
+                $.extend(true,this,$.nubuntu.autoCore.prototype);
+                this.messages = this.options.messages[this.options.language];
+                this.element.addClass('autoform_container');
+                if(this.options.source_options){
                     var options = this._get_source();
                     $.extend(true, this.options, options);                    
                 }
@@ -59,7 +281,6 @@ THE SOFTWARE.
                 $.ajax({
                       url: source_url,
                       type: "GET",
-                      async: false,
                       success: function(data) {
                         try {
                             params = JSON.parse(data);
@@ -75,6 +296,7 @@ THE SOFTWARE.
                 this._create_title();
                 this._create_body();
                 this._create_form();
+                this._form_created();
             },
             _create_title : function(){
                 if(!this.options.title){
@@ -82,22 +304,65 @@ THE SOFTWARE.
                 }
                 this.$title = $("<div/>").addClass('panel-heading autotable_title')
                         .append('<h3 class="panel-title pull-left">' + this.options.title + '</h3>')
-                        .append('<div class="clearfix"></div>')
                         .appendTo(this.$container);
+                this._create_toolbar();
+            },
+            _create_toolbar    : function(){
+                var self        = this;
+                var $div        = $('<div/>').addClass('col-md-4 col-lg-4 col-sm-6 pull-right');
+                this.$toolbar   = $('<div/>').addClass('row input-group pull-right');
+                if(this.options.toolbars){
+                    $.each(this.options.toolbars,function(index,toolbar){
+                        var $toolbar  = toolbar.display();
+                        $toolbar.css('margin-left','10px').click(function(){
+                            toolbar.click.apply(self,[]);
+                        });
+                        self.$toolbar.append($toolbar);
+                    });
+                }
+                $div.append(this.$toolbar);
+                this.$title.append($div).append('<div class="clearfix"></div>');
             },
             _create_body  : function(){
                 this.$container_body = $('<div/>').addClass('panel-body').appendTo(this.$container);
             },
             _create_form  : function(){
-               this.$form = $('<form/>')
-                                .append(this._get_msg_box())
-                                .append(this._get_fields())
-                                .append(this._get_buttons())
+               this.$form = $('<form/>').attr({
+                                   'role':'form',
+                                   'enctype':'multipart/form-data'
+                                })
+                                .append(this._get_msg_box());
+                if(this.options.horizontal)
+                    this.$form.addClass('form-horizontal');
+                this._create_fields();
+                this.$form.append(this._get_buttons())
                                 .appendTo(this.$container_body);
+            },
+            _form_created : function(){
+                if(this.options.summernote){
+                    this.$form.find('textarea').summernote({
+                        height: 200,                 // set editor height
+
+                        minHeight: null,             // set minimum height of editor
+                        maxHeight: null,             // set maximum height of editor
+
+                        focus: true                 // set focus to editable area after initializing summernote
+                    });
+                }
             },
             _get_msg_box : function(){
                 this.$msgbox = $('<div/>').addClass('autoform_message alert').hide();
                 return this.$msgbox;    
+            },
+            _create_fields : function(){
+                var self        = this;
+                $.each(this.options.fields, function(index, field) {
+                    field.name  = index;
+                    if(!field.value){
+                        field.value = null;
+                    }
+                    self.$form.append(self._get_field(field));
+                });
             },
             _get_fields : function(){
                 var $fieldset   = $('<div/>').addClass('autoform_inputs');
@@ -112,13 +377,13 @@ THE SOFTWARE.
                 return $fieldset;
             },
             _get_field : function(field){
-                var $div = $('<div/>').addClass('form-group').append(this._get_input(field));
+                var $div = this._get_input(field);
                 $div = this._set_visibility(field,$div);
                 field.element = $div; 
                 return $div;                       
             },
             _get_input : function (field){
-                var $div    = $('<div/>').addClass('input form-group');
+                var $div    = $('<div/>').addClass('form-group');
                 var $label  = this._get_label(field);
                 if(field.required){
                     $label.addClass('label-required');
@@ -131,6 +396,9 @@ THE SOFTWARE.
                     case 'textarea':
                         $input = this._get_input_textarea(field);
                     break;
+                    case 'file':
+                        $input = this._get_input_file(field);
+                        break;
                     case 'select':
                         $input = this._get_input_select(field);
                     break;
@@ -140,15 +408,18 @@ THE SOFTWARE.
                     case 'email':
                         $input = this._get_input_email(field);
                     break;
+                    case 'number':
+                        $input = this._get_input_number(field);
+                    break;
                     case 'radio':
                         $input = this._get_input_radio(field);
                     break;
                 }
                 switch(field.type){
                     default:
-                        $label.append($('<span/>').addClass('form-input')
-                                        .append($input))
-                                        .appendTo($div);
+                        var $div_input  = this._get_input_div();
+                        $div_input.append($input);
+                        $div.append($label).append($div_input);
                     break;
                     case "caption":
                         return this._get_caption(field.title);
@@ -178,12 +449,10 @@ THE SOFTWARE.
             },
             _get_label        : function(field,input_label){
                 input_label = input_label!==undefined?input_label:true;
-                var $label  = $('<div/>');
-                var $span   = $('<label/>').attr('for',field.name).html(field.title);
-                if(input_label){
-                    $span.addClass('form-label');
-                }
-                return $label.append($span);
+                var $label   = $('<label/>').attr('for',field.name).html(field.title);
+                if(this.options.horizontal)
+                    $label.addClass('col-sm-2 control-label');
+                return $label;
             },
             _get_caption      : function(title){
                 var $div = $('<div/>').addClass('widget-title').append(
@@ -196,8 +465,12 @@ THE SOFTWARE.
             },
             _get_input_base   : function(field,$input){
                 var self = this;
-                $input.prop('name','autoform_' + field.name)
-                      .prop('id','autoform_' + field.name)
+                var placeholder = field.placeholder ? field.placeholder : field.title;
+                $input.prop({
+                        'name':'autoform_' + field.name,
+                        'id':'autoform_' + field.name,
+                        'placeholder':placeholder
+                        })
                       .data('field',field)
                       .addClass('form-control autoform_control');
                 if(field.required){
@@ -220,7 +493,9 @@ THE SOFTWARE.
                             field.change(self,val,el);
                         }
                     }
-                });             
+                });
+                if(field.attr)
+                    $input.attr(field.attr);
                 return $input; 
             },
             _get_input_change : function(element){
@@ -229,6 +504,12 @@ THE SOFTWARE.
                 element.data('field',field);
                 return field.value;
             },
+            _get_input_div : function(){
+                var $div = $('<div/>').addClass('col-sm-10');
+                if(this.options.horizontal)
+                    $div.addClass('col-sm-10');
+                return $div;
+            },
             _get_input_text : function(field){
                 var $input  =  $('<input/>').prop('type','text');
                 $input      =  this._get_input_base(field,$input);
@@ -236,6 +517,11 @@ THE SOFTWARE.
             },
             _get_input_textarea : function(field){
                 var $input  =  $('<textarea/>');
+                $input      =  this._get_input_base(field,$input);
+                return $input;
+            },
+            _get_input_file : function(field){
+                var $input  =  $('<input/>').prop('type','file');
                 $input      =  this._get_input_base(field,$input);
                 return $input;
             },
@@ -263,6 +549,11 @@ THE SOFTWARE.
             },
             _get_input_email  : function(field){
                 var $input  =  $('<input/>').prop('type','email');
+                $input      =  this._get_input_base(field,$input);
+                return $input;
+            },
+            _get_input_number  : function(field){
+                var $input  =  $('<input/>').prop('type','number');
                 $input      =  this._get_input_base(field,$input);
                 return $input;
             },
@@ -314,6 +605,17 @@ THE SOFTWARE.
                 }
                 return $div;
             },
+            _get_input_val      : function(field,val){
+                switch (field.type){
+                    case 'file':
+                    case 'textarea':
+                        return field.value;
+                        break;
+                    default:
+                        return val;
+                    break;
+                }
+            },
             _get_input_value    : function($input,field){
                 switch(field.type){
                     default:
@@ -324,7 +626,17 @@ THE SOFTWARE.
                             return this._get_input_value_checkbox_group($input,field);
                         }
                         return $input.prop('checked');
-                    break;    
+                    break;
+                    case 'file':
+                        return this._get_input_value_file($input,field);
+                        break;
+                    case 'textarea':
+                        if(this.options.summernote){
+                            return $input.code();
+                        }else{
+                            return $input.val();
+                        }
+                        break;
                 }
                 return $input.val();
             },
@@ -338,6 +650,10 @@ THE SOFTWARE.
                     }
                 });
                 return values;
+            },
+            _get_input_value_file : function($input,field){
+                this.options.fields[field.name].filename = $input.val();
+                return $input[0].files[0];
             },
             _get_buttons : function(){
                 var $div = $('<div/>').addClass('autoform_action pull-right');
@@ -361,11 +677,11 @@ THE SOFTWARE.
                         var func = button.click.replace("function","function click");
                         eval(func);
                         $a.click(function(){
-                            click(self);                           
+                            click.apply(self,arguments);                           
                         });
                     }else{
                         $a.click(function(){
-                            button.click(self);                        
+                            button.click.apply(self,arguments);                        
                         });
                     }
                 }
@@ -387,25 +703,43 @@ THE SOFTWARE.
                 return fields;
             },
             get_data    : function(){
-                var fields  = this.get_fields();
-                var data    = {};
-                $.each(fields, function(index, field) {
-                    data[field.name] = field.value;
-                });
+                var formdata    = this.$form.serializeArray();
+                var data        = {};
+                for(var i=0;i<formdata.length;i++){
+                    var name    = formdata[i].name.replace('autoform_','');
+                    var val     = formdata[i].value;
+                    if(this.options.fields[name]){
+                        val     = this._get_input_val(this.options.fields[name],val);
+                        this.options.fields[name].value = val;
+                    }
+                    data[name]  = val;
+                }
                 return data;
             },
+            _before_validate : function(){
+                if(this.options.summernote){
+                    this.$form.find("textarea").each(function(index, el) {
+                        var field = $(this).data('field');
+                        if(field!==undefined){
+                            field.value = $(this).code();
+                            $(this).data('field',field);
+                        }
+                    });
+                }
+            },
             validate    : function(){
+                this._before_validate();
                 var self    = this;
                 var valid   = true;
                 this.$msgbox.empty().hide();
                 $.each(this.options.fields, function(index, field) {
                     if(field.required){
                         if(!field.value){
-                            self.$msgbox.append(field,field.title + ' is required and cannot be empty.<br/>');
+                            self.$msgbox.append(field,self.sprintf(self.messages.form.error.required,field.title)  + '<br/>');
                             valid = false;
                         }else{
                             if(field.value.trim().length<1){    
-                                self.$msgbox.append(field,field.title + ' is required and cannot be empty<br/>');
+                                self.$msgbox.append(field,self.sprintf(self.messages.form.error.required,field.title) + '<br/>');
                                 valid = false;
                             }
                         }
@@ -421,18 +755,35 @@ THE SOFTWARE.
                 var self        = this;
                 var data        = this.get_data();
                 var response    = '';
-                var action_save = this.options.action_save!==undefined?this.options.action_save:this.options.source + '?autoform_action=save_data'; 
+                var action_save = this.options.action_save!==undefined?this.options.action_save:this.options.source; 
+                if(!this.options.action_save)
+                  data.autoform_action='save_data';
+                if(this.options.source_data)
+                  data = $.extend(true,data,this.options.source_data);
                 if(this.options.encode){
                     data = JSON.stringify(data);
                     data = this._encode(data);
                 }
+
+                var formData = new FormData();
+                for (var key in data) {
+                    formData.append(key, data[key]);
+                }
+                $.each(this.options.fields,function(key,field){
+                   if(field.type=='file'){
+                       if(field.value)
+                           formData.append(key, field.value,field.value.name);
+                   }
+                });
                 $.ajax({
-                      url: action_save,
-                      data: data,
+                      url: this.options.source,
+                      data: formData,
                       type: "POST",
                       async: this.options.async,
-                      success: function(data) {
-                        console.log(data);
+                    cache: false,
+                    contentType: false,
+                    processData: false,
+                    success: function(data) {
                         if(self.options.async){
                             callback(data);
                         }else{
@@ -470,6 +821,8 @@ THE SOFTWARE.
                 });
             },
             _set_value    : function(field){
+                if(!field.element)
+                    return;
                 switch(field.type){
                     default:
                         this._set_value_text(field);
@@ -480,9 +833,14 @@ THE SOFTWARE.
                     case 'checkbox':
                         if(field.options){
                             this._set_value_checkbox_group(field);
-                        }else{
-                            this._set_value_checkbox(field);
+                             this._set_value_checkbox(field);
                         }
+                    break;
+                    case 'textarea':
+                        this._set_value_textarea(field);
+                        break;
+                    case 'file':
+                        return;
                     break;
                 }
             },
@@ -500,8 +858,16 @@ THE SOFTWARE.
                 this._create();
             },
             _set_value_text : function(field){
-                var $element = field.element.find("[name=autoform_" + field.name + "]"); 
+                var $element = field.element.find("[name=autoform_" + field.name + "]");
                 $element.val(field.value).change();
+            },
+            _set_value_textarea : function(field){
+                var $element = field.element.find("[name=autoform_" + field.name + "]");
+                if(this.options.summernote){
+                    $element.code(field.value);
+                }else{
+                    $element.val(field.value).change();
+                }
             },
             _set_value_radio : function(field){
                 var $element = field.element.find("#autoform_" + field.name + "_" + field.value);
@@ -604,8 +970,9 @@ THE SOFTWARE.
                 title : null,
                 async : true,
                 max_text : 300,
-                limit : 20,
+                limit : 10,
                 button_align : "left",
+                row:{},
             },
             $container              : null,
             $title                  : null,
@@ -629,7 +996,7 @@ THE SOFTWARE.
             _table_key              : null,
             _list_params            : null,
             _create : function(){
-                if(this.options.source){
+                if(this.options.source_options){
                     var options = this._get_source();
                     $.extend(true, this.options, options);                    
                 }
@@ -664,7 +1031,7 @@ THE SOFTWARE.
                 });
             },
             _create_container : function(){
-                this.$container = $('<div/>').addClass('panel panel-primary table-responsive').appendTo(this.element);
+                this.$container = $('<div/>').addClass('panel panel-primary table-responsive autotable_container').appendTo(this.element);
                 this._create_busy_panel();
                 this._create_title();
                 this._create_table();
@@ -700,8 +1067,10 @@ THE SOFTWARE.
                 this._create_toolbar();        
             },
             _create_toolbar    : function(){
-                var $div        = $('<div/>').addClass('col-md-10 col-lg-10 col-sm-10 pull-right');
-                this.$toolbar   = $('<div/>').addClass('row input-group').append(this._create_new_button()).appendTo($div);
+                var $div        = $('<div/>').addClass('col-md-4 col-lg-4 col-sm-6 pull-right');
+                this.$toolbar   = $('<div/>').addClass('row input-group pull-right').appendTo($div);
+                if(this.options.create)
+                    this.$toolbar.append(this._create_new_button());
                 this.$title.append($div).append('<div class="clearfix"></div>');
             },
             _create_new_button : function(){
@@ -709,6 +1078,7 @@ THE SOFTWARE.
                 var $button = $('<button/>').addClass('btn btn-primary')
                             .append('<span class="glyphicon glyphicon-plus" aria-hidden="true"></span> Add New')
                             .click(function(){
+                                console.log('Add new fired...');
                                 self.add_new();
                             });
                 return  $('<span>').addClass('input-group-btn').append($button);            
@@ -725,7 +1095,8 @@ THE SOFTWARE.
                 this.$thead = $("<thead/>");
                 var $tr     = $("<tr/>");
                 if(this.options.button_align=='left'){
-                    $tr.append("<th></th>");
+                    if(this.options.update || this.options.delete)
+                        $tr.append("<th></th>");
                 }
                 $.each(this.options.fields,function(index,field){
                     if(field.key){
@@ -736,12 +1107,17 @@ THE SOFTWARE.
                     }
                 });
                 if(this.options.button_align=='right'){
-                    $tr.append("<th></th>");
+                    if(this.options.update || this.options.delete)
+                        $tr.append("<th></th>");
                 }
                 this.$thead.append($tr).appendTo(this.$table);
             },
             _create_header_th : function(field){
-                return $('<th/>').html(field.title);
+                var $th = $('<th/>').html(field.title);
+                if(field.align){
+                    $th.attr('align',field.align);
+                }
+                return $th;
             },
             _create_body   : function(){
                 this.$tbody   = $("<tbody/>");
@@ -916,114 +1292,172 @@ THE SOFTWARE.
                             </tr>")
             },
             _create_records : function(records){
-                var self = this;
+                var self    = this;
+                var counter = (this._current_page-1) * this.options.limit + 1;
                 $.each(records,function(index, record) {
+                    record.current_counter = counter;
                     self.$tbody.append(self._create_record(record));
+                    counter++;
                 });
             },
             _create_record : function(record){
                 var self = this;
                 var $tr = $('<tr/>').addClass('autotable_row').data('record',record);
+                if(this.options.row.click){
+                    $tr.css('cursor','pointer').click(function(){
+                        self.options.row.click.apply(self,[$(this),record]);
+                    });
+                }
                 if(this.options.button_align=='left'){
-                    $tr.append($('<td/>').addClass('autotable_action').append(this._create_action()));
+                    if(this.options.update || this.options.delete)
+                        $tr.append($('<td/>').addClass('autotable_action').append(this._create_action()));
                 }
                 $.each(this.options.fields,function(field_name,field){
+                    field.name = field_name;
                     if(field.list===undefined || field.list!=false){
-                        var text = record[field_name];
-                        if(text!=null){
-                            if(text.length>self.options.max_text){
-                                text = text.substr(0,(self.options.max_text-3)) + '...';
-                            }
-                        }else{
-                            text = '';
-                        }
-                        $tr.append('<td class="col_' + field_name + '">' + text + '</td>');
-                    } 
+                        $tr.append(self._get_field(field,record));
+                    }
                 });
                 if(this.options.button_align=='right'){
-                    $tr.append($('<td/>').addClass('autotable_action').append(this._create_action()));
+                    if(this.options.update || this.options.delete)
+                        $tr.append($('<td/>').addClass('autotable_action').append(this._create_action()));
                 }
                 return $tr;
 
             },
+            _get_field : function(field,record){
+                switch(field.type){
+                    default:
+                        return this._get_field_text(field,record);
+                        break;
+                    case 'radio':
+                        return this._get_field_radio(field,record);
+                        break;
+                }
+            },
+            _get_field_text : function(field,record){
+                var self = this;
+                var text = record[field.name];
+                if(text!=null){
+                    if(text.length>self.options.max_text){
+                        text = text.substr(0,(self.options.max_text-3)) + '...';
+                    }
+                }else{
+                    text = '';
+                }
+                if(field.display){
+                    text = field.display.apply(self,[record]);
+                }
+                var $td = $('<td/>').addClass('col_' + field.name).html(text);
+                if(field.click){
+                    $td.css('cursor','pointer').click(function(){
+                        field.click.apply(self,[$(this),record]);
+                    });
+                }
+                if(field.align)
+                    $td.attr('align',field.align);
+                return $td;
+            },
+            _get_field_radio : function(field,record){
+                var $td = this._get_field_text(field,record);
+                $.each(field.options,function(index,option){
+                   if(option.value==record[field.name]){
+                       $td.html(option.text);
+                       return false;
+                   }
+                });
+                return $td;
+            },
             _create_action  : function(){
                 var self            = this;
                 var $div_action     = $('<div/>');
-                var $edit_action    = $('<button/>').addClass('btn btn-info btn-xs').prop('title','Edit')
+                var $edit_action    = $('<button/>').addClass('btn btn-info btn-xs').prop('title','Edit').css('margin-right','5px')
                                                 .append('<span class="glyphicon glyphicon-edit"></span>')
-                                                .click(function(){
-                                                    var $tr     = $(this).closest('tr');
-                                                    var record  = $tr.data('record');
+                                                .click(function(e){
+                                                    e.stopPropagation();
+                                                    var $tr = $(this).closest('tr');
                                                     var options = self._get_form_options('edit',$tr);
-                                                    self.$form.autoForm('set_options',options).autoForm('bind',record).autoForm('load');
-                                                    self.$div_dialog.dialog({title:'Edit record'}).dialog('open');
+                                                    self.load_form(options,$tr);
                                                 });
-                var $delete_action   = $('<button/>').addClass('btn btn-danger btn-xs').prop('title','Delete')
+                var $delete_action   = $('<button/>').addClass('btn btn-danger btn-xs').prop('title','Delete').css('margin-right','5px')
                                                 .append('<span class="glyphicon glyphicon-trash"></span>')                
                                                 .click(function(){
                                                     var $tr     = $(this).closest('tr');
                                                     var record  = $tr.data('record');
                                                     var options = self._get_form_options('delete',$tr);
-                                                    self.$form.autoForm('set_options',options).autoForm('bind',record).autoForm('load');
-                                                    self.$div_dialog.dialog({title:'Delete record'}).dialog('open');
+                                                    self.load_form(options,$tr);
                                                 });
-                return $div_action.append($edit_action).append(' ').append($delete_action);                                                    
+                if(this.options.update)
+                    $div_action.append($edit_action);
+                if(this.options.delete)
+                    $div_action.append($delete_action);
+                return $div_action;
             },
             "add_new"    : function(){
                 var options = this._get_form_options('create');
-                this.$form.autoForm('set_options',options);
-                this.$div_dialog.dialog({title:'Add new record'}).dialog('open');
+                this.load_form(options);
             },
             _create_form : function(){
                 return $('<div/>').autoForm(this.options);
             },
             _get_form_options : function(action,$tr){
                 var self        = this;
-                var options     = this.$form.autoForm('get_options');
-                var fields      = $.extend(true, {}, this.options.fields);
-                var new_fields  = {autotable_action:{type:'hidden',value:'form_save'}};
+                var options     = $.extend(true,{},this.options);
+                var fields      = $.extend(true,{},this.options.fields);
+                var new_fields  = {};
+                options.source_data  = {autotable_action:'form_save'};
                 options.async       = true;
-                options.action_save = this.options.source;
-                options.buttons = {
-                    close: {
-                        title: "Cancel",
-                        class: "btn-default",
-                        icon: "glyphicon glyphicon-remove",
-                        click: function(){
-                            self.$div_dialog.dialog('close');
-                        }
+                options.horizontal  = true;
+                options.toolbars    = {
+                    close : {
+                        display : function(){
+                            var $button =$("<button/>").addClass("btn btn-danger")
+                                .append('<span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Cancel');
+                            return $button;
+                        },
+                        click : function(){
+                            self.load_form(self.options,$tr);
+                        },
                     },
-                    save: {
-                        title:"Save",
-                        class: "btn-primary",
-                        icon: "glyphicon glyphicon-ok",
-                        click: function(form){
+                    submit : {
+                        display : function(){
+                            var $button =$("<button/>").addClass("btn btn-success")
+                                .append('<span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Submit');
+                            return $button;
+                        },
+                        click : function(){
+                            var form = this;
                             if(form.validate()){
+                                form.loading('show');
                                 form.submit(function(data){
-                                    if(data>0){
+                                    if(data){
                                         switch(action){
                                             case 'edit':
                                                 self._update_row($tr,form.get_data());
-                                            break;
+                                                break;
                                             case 'create':
                                                 self._load(self._current_page);
-                                            break;
+                                                break;
                                             case 'delete':
                                                 self._delete_row($tr);
-                                            break;
+                                                break;
                                         }
-                                        self.$div_dialog.dialog('close');
+                                        self.close_form();
                                     }else{
                                         alert('Save data failed...');
                                     }
+                                    form.loading('hide');
                                 });
                             }
-                        }
+                        },
                     }
-                }; 
+                };
                 switch(action){
                     case 'edit':
                         options.title = 'Edit Record';
+                        options.toolbars.close.click = function(){
+                            self.load_form(self._get_form_options('edit',$tr));
+                        };
                         $.each(fields,function(index,field){
                             edit = field.edit !== undefined ? field.edit : true;
                             if(!edit){   
@@ -1031,9 +1465,12 @@ THE SOFTWARE.
                             }
                             new_fields[index] = field;
                         });
-                    break;
+                        break;
                     case 'create':
                         options.title = 'Add New Record';
+                        options.toolbars.close.click = function(){
+                            self.load_form(self._get_form_options('create'));
+                        };
                         $.each(fields,function(index,field){
                             field.value    = null;
                             create = field.create !== undefined ? field.create : true;
@@ -1045,8 +1482,7 @@ THE SOFTWARE.
                     break;
                     case 'delete':
                         options.title = 'Are you sure ?'; 
-                        options.buttons.save.title          = 'Delete';
-                        new_fields.autotable_action.value   = 'form_delete';
+                        options.source_data.autotable_action  = 'form_delete';
                         new_fields['message'] = {
                             type:'caption',
                             title:'<span class="glyphicon glyphicon-warning-sign"></span> This record will be deleted, Are you sure ?'
@@ -1075,7 +1511,7 @@ THE SOFTWARE.
                         }else{
                             text = '';
                         }
-                        $tr.find(".col_" + field_name).text(text);
+                        $tr.find(".col_" + field_name).html(text);
                     } 
                 });
                 $tr.effect("highlight", {}, 3000);
@@ -1093,12 +1529,13 @@ THE SOFTWARE.
                 this._do_ajax(data,function(data){
                     try{
                         data = JSON.parse(data);
-                        self._on_load(data,page);
-                        self._hide_busy();                    
                     }catch(e){
                         alert(e);
                         console.log(data);
                         self._hide_busy();                    
+                    }finally{
+                        self._on_load(data,page);
+                        self._hide_busy();
                     }
                 });        
             },
@@ -1130,7 +1567,6 @@ THE SOFTWARE.
                 this.$tbody.empty();
                 if(data.records!=null && data.records.length>=1){
                     this._records = data.records;
-                    this._create_records(data.records);
                     if(data.total>=1){
                         this._current_page  = page;
                         this._total         = data.total;
@@ -1142,10 +1578,12 @@ THE SOFTWARE.
                     if(this._page_count>=1){
                         this._create_pagination();
                     }
+                    this._create_records(data.records);
                 }else{
-                    this.$tbody.append(this._create_empty_row());                    
+                    this.$tbody.append(this._create_empty_row());
                     this.$tfoot.empty();
                 }
+                this._create_detail_row();
             },
             _get_confirm_dialog : function(title,message,callback){
                 var $div = $('<div id="dialog-confirm" title="' + title + '">\
@@ -1167,6 +1605,14 @@ THE SOFTWARE.
                             });
             },
             "load"  : function(){
+                if(this.options.sort){
+                    this._list_params = $.extend(true, this._list_params,{
+                        autotable_sort : this.options.sort
+                    });                    
+                }
+                if(this.options.source_data){
+                    this._list_params = $.extend(true, this._list_params,this.options.source_data);                                        
+                }
                 this._load(1);
             },
             _normalize_number: function (number, min, max, defaultValue) {
@@ -1271,8 +1717,8 @@ THE SOFTWARE.
         },
         _create_search : function(){
             this.$div_search = $('<div/>').addClass('input-group pull-right').prependTo(this.$toolbar);
-            this.$div_search.append(this._create_search_input())
-                            .append(this._create_search_option())
+            this.$div_search.append(this._create_search_option())
+                            .append(this._create_search_input())
                             .append(this._create_search_button());
             this.$div_search.find('.dropdown-menu').css({
                                                         'min-width':this.$div_search.width(),
@@ -1285,7 +1731,7 @@ THE SOFTWARE.
         },
         _create_search_button : function(){
             var self            = this;
-            this.$search_button = $('<button/>').addClass('btn btn-default')
+            this.$search_button = $('<button/>').addClass('btn btn-default').css('height','34px')
                                         .append('<span class="glyphicon glyphicon-search" aria-hidden="true"></span>')
                                         .click(function(){
                                             var data    = {
@@ -1301,7 +1747,7 @@ THE SOFTWARE.
         _create_search_option : function(){
             var $div             = $('<div/>').addClass('input-group-btn');
             var $dropdown        = $('<div>').addClass('dropdown').appendTo($div);
-            var $dropdown_button = $('<button/>').addClass('btn btn-default dropdown-toggle')
+            var $dropdown_button = $('<button/>').addClass('btn btn-default dropdown-toggle').css('height','34px')
                                                 .attr('data-toggle','dropdown')
                                                 .append('<span class="caret"></span>')
                                                 .appendTo($dropdown);
@@ -1394,8 +1840,122 @@ THE SOFTWARE.
                         $(this).data('asc',!asc);
                     });
             }
+            if(field.align){
+                $th.css('text-align',field.align);
+            }
             return $th;
         },
+    });
+    
+})(jQuery);
+
+
+/** autoTable load another table in detail 
+
+**/
+(function ($) {
+    var base = {
+        _create_body : $.nubuntu.autoTable.prototype._create_body,
+    };
+    $.extend(true, $.nubuntu.autoTable.prototype, {
+
+        _create_body : function(){
+            base._create_body.apply(this,arguments);
+            this._create_detail_row();
+        },
+
+        _create_detail_row : function(){
+            var cols = this._fields_size;
+            if(this.options.update || this.options.delete)
+                cols++;
+            this.$detail_row =  $("<tr class='detail-row'>\
+                                        <td colspan='" + cols + "'>\
+                                            <div class='detail-div'>\
+                                            </div>\
+                                        </td>\
+                                    </tr>").hide().appendTo(this.$tbody);
+            this.$detail      = $(this.$detail_row.find('.detail-div')[0]);
+        },
+
+        load_table : function(options,$tr){
+            var self = this;
+            if($tr.hasClass('selected-row')){
+                $tr.removeClass('selected-row');    
+                this.$detail_row.hide();
+                this.$detail.empty();
+                this.$tbody.find('tr').show();
+            }else{
+                $tr.addClass('selected-row')
+                this.$tbody.find('tr').each(function(){
+                    if(!$(this).hasClass('selected-row')){
+                        $(this).hide();
+                    }
+                });
+                this.$detail_row.show();
+                var $div = $('<div/>').appendTo(this.$detail);
+                $div.autoTable(options);
+                $div.autoTable('load');                
+            }
+        },
+
+    });
+    
+})(jQuery);
+
+/** autoTable load form in detail 
+
+**/
+(function ($) {
+
+    $.extend(true, $.nubuntu.autoTable.prototype, {
+
+        load_form : function(options,$tr){
+            var self = this;
+            if($tr) {
+                if ($tr.data('record')) {
+                    var record = $tr.data('record');
+                    $.each(options.fields, function (index, field) {
+                        if (record[index])
+                            options.fields[index].value = record[index];
+                    });
+                }
+                if ($tr.hasClass('selected-row')) {
+                    $tr.removeClass('selected-row');
+                    this.$tbody.find('tr').show();
+                    this.$detail_row.hide();
+                    this.$detail.empty();
+                } else {
+                    $tr.addClass('selected-row')
+                    this.$tbody.find('tr').each(function () {
+                        if (!$(this).hasClass('selected-row')) {
+                            $(this).hide();
+                        }
+                    });
+                    this.$detail_row.show();
+                    var $div = $('<div/>').appendTo(this.$detail);
+                    $div.autoForm(options);
+                    $div.autoForm('load');
+                }
+            }else{
+                if(this.$detail_row.is(':visible')){
+                    this.$tbody.find('tr').show();
+                    this.$detail_row.hide();
+                    this.$detail.empty();
+                }else{
+                    this.$tbody.find('tr').hide();
+                    this.$detail_row.show();
+                    var $div = $('<div/>').appendTo(this.$detail);
+                    $div.autoForm(options);
+                    $div.autoForm('load');
+                }
+            }
+        },
+        close_form : function(){
+            this.$tbody.find('tr').show();
+            this.$detail_row.hide();
+            this.$detail.empty();
+        },
+
     });
     
 })(jQuery);
