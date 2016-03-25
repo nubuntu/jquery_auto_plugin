@@ -215,6 +215,112 @@
     });
 }(jQuery));
 
+(function( $ ) {
+    $.widget("nubuntu.autoAlert", {
+        options : {
+            title : 'Alert',
+            message : '',
+            icon : 'glyphicon-info-sign',
+            type : 'primary',
+            content : false,
+            cancel : false,
+            autoOpen:true,
+            mode:'alert',
+            on_ok : function(){return true;},
+            on_cancel : function(){return true;},
+        },
+        _create : function(){
+            this._set_mode();
+            this._create_container();
+        },
+        _set_mode : function(){
+            switch(this.options.mode){
+                case 'prompt':
+                    if(this.options.title=='Alert'){
+                        this.options.title='Prompt';
+                    }
+                    this.options.cancel = true;
+                    break;
+            }
+        },
+        _create_container : function(){
+            this.$container = $('\
+                <div class="row">\
+                    <div class="panel panel-' + this.options.type + '">\
+                        <div class="panel-heading">\
+                            <h3 class="panel-title pull-left alert-title">' + this.options.title + '</h3>\
+                            <div class="clearfix"></div>\
+                        </div>\
+                        <div class="panel-body">\
+                                    <div class="form-group">\
+                                        <div class="widget-title">\
+                                            <div class="meta">\
+                                                <div class="name contents"><span class="glyphicon ' + this.options.icon + '"></span> ' + this.options.message + '</div>\
+                                            </div>\
+                                        </div>\
+                                    </div>\
+                                <div class="pull-right buttons"></div>\
+                        </div>\
+                    </div>\
+                </div>\
+            ');
+            if(this.options.cancel){
+                this.$container.find('.buttons').append(this._create_cancel_button());
+            }
+            this.$container.css('z-index',1000)
+                .find('.buttons').append(this._create_ok_button());
+            if(this.options.content){
+                this.$container.find('.contents').append(this._create_content());
+            }
+            this.$container.dialog({
+                autoOpen: this.options.autoOpen,
+                height: 'auto',
+                width: 600,
+                modal: true,
+                dialogClass:"no-titlebar",
+                close: function() {
+                }
+            });
+
+        },
+        _create_ok_button : function(){
+            var self = this;
+            this.$ok_button = $('<a class="btn btn-primary"><span class="glyphicon glyphicon-ok"></span> Ok</a>')
+                .click(function(){
+                    if(self.options.on_ok.apply(self,arguments)){
+                        self.$container.dialog('close');
+                    }
+                });
+            return this.$ok_button;
+        },
+        _create_cancel_button : function(){
+            var self = this;
+            this.$cancel_button = $('<a class="btn btn-primary"><span class="glyphicon glyphicon-remove"></span> Cancel</a>')
+                .css("marginRight","10px")
+                .click(function(){
+                    if(self.options.on_cancel.apply(self,arguments)){
+                        self.close();
+                    }
+                });
+            return this.$cancel_button;
+        },
+        _create_content : function(){
+            if($.isFunction(this.options.content)){
+                this.$content = this.options.content.apply(this,arguments);
+            }else{
+                this.$content = this.options.content;
+            }
+            return this.$content;
+        },
+        close : function(){
+            this.$container.dialog('close');
+        },
+        prompt : function(){
+            this.$container.find('.alert-title').html('Prompt');
+        }
+    });
+}(jQuery));
+
 /* 
 
 autoForm 1.0.0
@@ -313,9 +419,13 @@ THE SOFTWARE.
                 this.$toolbar   = $('<div/>').addClass('row input-group pull-right');
                 if(this.options.toolbars){
                     $.each(this.options.toolbars,function(index,toolbar){
-                        var $toolbar  = toolbar.display();
+                        if(typeof toolbar.display==='string'){
+                            var func = "toolbar.display = " + toolbar.display;
+                            eval(func);
+                        }
+                        $toolbar  = toolbar.display.apply(self,[]);
                         $toolbar.css('margin-left','10px').click(function(){
-                            toolbar.click.apply(self,[]);
+                                toolbar.click.apply(self,[]);
                         });
                         self.$toolbar.append($toolbar);
                     });
@@ -1348,7 +1458,7 @@ THE SOFTWARE.
                 if(field.display){
                     text = field.display.apply(self,[record]);
                 }
-                var $td = $('<td/>').addClass('col_' + field.name).html(text);
+                var $td = $('<td/>').addClass('col_' + field.name).text(text);
                 if(field.click){
                     $td.css('cursor','pointer').click(function(){
                         field.click.apply(self,[$(this),record]);
@@ -1362,7 +1472,11 @@ THE SOFTWARE.
                 var $td = this._get_field_text(field,record);
                 $.each(field.options,function(index,option){
                    if(option.value==record[field.name]){
-                       $td.html(option.text);
+                       if(option.list){
+                           $td.html(option.list);
+                       }else{
+                           $td.html(option.text);
+                       }
                        return false;
                    }
                 });
@@ -1511,7 +1625,7 @@ THE SOFTWARE.
                         }else{
                             text = '';
                         }
-                        $tr.find(".col_" + field_name).html(text);
+                        $tr.find(".col_" + field_name).text(text);
                     } 
                 });
                 $tr.effect("highlight", {}, 3000);
@@ -1707,7 +1821,7 @@ THE SOFTWARE.
         _search_list    : [],
         _search_option  : 'contain',
         options: {
-            search:true,
+            search:false,
         },
         _create_toolbar : function(){
             base._create_toolbar.apply(this,arguments);
@@ -1958,4 +2072,179 @@ THE SOFTWARE.
 
     });
     
+})(jQuery);
+
+/** autoTable Toolbars extension
+
+ **/
+(function ($) {
+    var base = {
+        _create_toolbar : $.nubuntu.autoTable.prototype._create_toolbar,
+    };
+    $.extend(true, $.nubuntu.autoTable.prototype, {
+        _create_toolbar : function(){
+            base._create_toolbar.apply(this,arguments);
+            this._create_toolbars();
+        },
+        _create_toolbars : function(){
+            var self        = this;
+            if(this.options.toolbars){
+                $.each(this.options.toolbars,function(index,toolbar){
+                    if(typeof toolbar.display==='string'){
+                        var func = "toolbar.display = " + toolbar.display;
+                        eval(func);
+                    }
+                    if(toolbar.click!==undefined && typeof toolbar.click==='string'){
+                        var func = "toolbar.click = " + toolbar.click;
+                        eval(func);
+                    }
+                    $toolbar  = toolbar.display.apply(self,[]);
+                    $toolbar.css('margin-left','10px').click(function(){
+                        if(toolbar.click){
+                            toolbar.click.apply(self,[]);
+                        }
+                    });
+                    self.$toolbar.append($toolbar);
+                });
+            }
+        },
+    });
+
+})(jQuery);
+
+/** autoTable toolbar search extension
+
+ **/
+(function ($) {
+    var base = {
+        _create_header : $.nubuntu.autoTable.prototype._create_header,
+    };
+    $.extend(true, $.nubuntu.autoTable.prototype, {
+        options : {
+            toolbarsearch : false,
+            toolbarsearch_min_length : 3,
+        },
+        _create_header : function(){
+            base._create_header.apply(this,arguments);
+            if(this.options.toolbarsearch){
+                this._create_toolbarsearch();
+            }
+        },
+        _create_toolbarsearch : function(){
+            var self    = this;
+            this.$toolbarsearch     = $("<tr/>").addClass('toolbarsearch_tr').appendTo(this.$thead);
+            if(this.options.button_align=='left'){
+                if(this.options.update || this.options.delete)
+                    this.$toolbarsearch.append("<th></th>");
+            }
+            $.each(this.options.fields,function(index,field){
+                if(field.list===undefined || field.list!=false){
+                    self.$toolbarsearch.append(self._create_toolbarsearch_th(field));
+                }
+            });
+            if(this.options.button_align=='right'){
+                if(this.options.update || this.options.delete)
+                    this.$toolbarsearch.append("<th></th>");
+            }
+        },
+        _create_toolbarsearch_th : function(field){
+            var $th     = this._create_header_th(field).unbind('click');
+            if(field.searchable)
+                $th.html(this._create_toolbarsearch_input(field));
+            return $th;
+        },
+        _create_toolbarsearch_input : function(field){
+            var $div = $('<div/>').addClass('input-group toolbarsearch_input_div');
+            switch(field.type){
+                default:
+                    $input = this._create_toolbarsearch_input_text(field);
+                    break;
+                case 'radio':
+                case 'select':
+                    $input = this._create_toolbarsearch_input_select(field);
+                    break;
+            }
+            $input.data('field',field);
+            $button = this._create_toolbarsearch_input_button(field);
+            return $div.append($input).append($button);
+        },
+        _create_toolbarsearch_input_button : function(field){
+            var self    = this;
+            var $button = $('<button/>').addClass('btn btn-primay').append('<i class="fa fa-times"></i>')
+                                .click(function () {
+                                    var $div = $(this).closest('.toolbarsearch_input_div');
+                                    $div.find('.toolbarsearch_input').val('');
+                                    self._run_toolbarsearch();
+                                });
+            return $('<span/>').addClass('input-group-btn').append($button);
+        },
+        _get_toolbarsearch_input_attr : function(field){
+            return {
+                'placeholder':'Search ' + field.title + ' here...'
+            };
+        },
+        _get_toolbarsearch_input_class : function(field){
+            return 'form-control toolbarsearch_input';
+        },
+        _create_toolbarsearch_input_text : function(field){
+            var self = this;
+            return $('<input/>').attr(this._get_toolbarsearch_input_attr(field))
+                                .addClass(this._get_toolbarsearch_input_class(field))
+                                .keyup(function(e){
+                                    if(e.keyCode == 13)
+                                    {
+                                        self._run_toolbarsearch();
+                                    }
+                                });
+        },
+        _create_toolbarsearch_input_select : function(field){
+            var self    = this;
+            var $select = $('<select>').attr(this._get_toolbarsearch_input_attr(field))
+                .addClass(this._get_toolbarsearch_input_class(field))
+                .change(function(e){
+                        self._run_toolbarsearch();
+                });
+            $select.append($('<option/>').val('').html('Filter'));
+            for(var i=0;i<field.options.length;i++){
+                var option = field.options[i];
+                $select.append($('<option/>').val(option.value).html(option.text));
+            }
+            return $select;
+        },
+        _run_toolbarsearch : function(){
+            var self            = this;
+            var search_list     = [];
+            var search_val       = [];
+            this.$toolbarsearch.find('.toolbarsearch_input').each(function(){
+                var field = $(this).data('field');
+                var input_val = self._get_toolbarsearch_input_value(field,$(this));
+                if(input_val.length<1)
+                    return true;
+                search_list.push(field.name);
+                search_val.push(input_val);
+            });
+            if(search_val.length>0){
+                var data    = {
+                    autotable_search        : search_val,
+                    autotable_search_list   : search_list,
+                    autotable_search_option : self._search_option,
+                };
+                self._list_params = $.extend(true, self._list_params, data);
+            }else{
+                delete(self._list_params.autotable_search);
+            }
+            self.load(1);
+        },
+        _get_toolbarsearch_input_value : function (field,$input) {
+            switch (field.type){
+                default:
+                    return this._get_toolbarsearch_input_value_text(field,$input);
+                    break;
+            }
+        },
+        _get_toolbarsearch_input_value_text : function (field,$input) {
+            return $input.val();
+        },
+    });
+
 })(jQuery);
